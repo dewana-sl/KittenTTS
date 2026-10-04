@@ -1,0 +1,124 @@
+name: Platform QA
+
+# Installs kittenml the way users do and runs qa/smoke.py on every
+# OS / CPU architecture / Python combination GitHub hosts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "What to install: a PyPI version spec (e.g. kittenml==0.9.3) or 'main' for this checkout"
+        default: "kittenml==0.9.3"
+      tts2:
+        description: "Run the KittenTTS 2 checks (1.7B model, ~1 GB download per job)"
+        type: boolean
+        default: true
+  push:
+    branches: [qa/python-platform-matrix]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04        # x86_64
+          - ubuntu-24.04-arm    # arm64
+          - macos-15            # Apple Silicon arm64
+          - macos-15-intel      # Intel x86_64
+          - windows-2025        # x86_64
+          - windows-11-arm      # arm64
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+    env:
+      SOURCE: ${{ inputs.source || 'kittenml==0.9.3' }}
+      SKIP_TTS2: ${{ (inputs.tts2 == false) && '1' || '0' }}
+      PYTHONUTF8: "1"
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        id: py
+        continue-on-error: true
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+
+      - name: Install
+        id: install
+        if: steps.py.outcome == 'success'
+        shell: bash
+        run: |
+          python -m pip install -q -U pip
+          if [ "$SOURCE" = "main" ]; then target=.; else target="$SOURCE"; fi
+          start=$(date +%s)
+          set +e
+          python -m pip install "$target" > install.log 2>&1
+          rc=$?
+          set -e
+          echo "secs=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          tail -40 install.log
+
+      - name: Smoke test
+        if: steps.install.outputs.rc == '0'
+        continue-on-error: true
+        shell: bash
+        run: python qa/smoke.py report.json
+
+      - name: Write report
+        if: always()
+        shell: bash
+        env:
+          PY_OUTCOME: ${{ steps.py.outcome }}
+          INSTALL_RC: ${{ steps.install.outputs.rc }}
+          INSTALL_SECS: ${{ steps.install.outputs.secs }}
+          OS_LABEL: ${{ matrix.os }}
+          PY_LABEL: ${{ matrix.python }}
+        run: |
+          PY=$(command -v python3 || command -v python)
+          "$PY" - <<'EOF'
+          import json, os
+          rep = json.load(open("report.json")) if os.path.exists("report.json") else {"env": {}, "results": []}
+          rep["runner"] = os.environ["OS_LABEL"]
+          rep["python_requested"] = os.environ["PY_LABEL"]
+          rep["source"] = os.environ["SOURCE"]
+          rc = os.environ.get("INSTALL_RC", "")
+          rep["install"] = {"python_available": os.environ["PY_OUTCOME"] == "success",
+                            "rc": rc, "secs": os.environ.get("INSTALL_SECS")}
+          if os.environ["PY_OUTCOME"] != "success":
+              rep["install"]["error"] = "setup-python has no build of this version for this runner"
+          elif rc != "0" and os.path.exists("install.log"):
+              rep["install"]["log_tail"] = open("install.log", encoding="utf-8", errors="replace").read()[-3000:]
+          name = f"{os.environ['OS_LABEL']}-py{os.environ['PY_LABEL']}"
+          json.dump(rep, open(f"qa-{name}.json", "w"), indent=1)
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-${{ matrix.os }}-py${{ matrix.python }}
+          path: qa-*.json
+
+  summary:
+    needs: smoke
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qa-*
+          merge-multiple: true
+          path: reports
+      - run: python qa/summarize.py reports >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qa-all-reports
+          path: reports

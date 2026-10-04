@@ -15,6 +15,7 @@ on:
         default: true
   push:
     branches: [qa/python-platform-matrix]
+    paths: [qa/smoke.py]
 
 permissions:
   contents: read

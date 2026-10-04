@@ -19,6 +19,9 @@ def cell(rep):
             return "⛔ refused (Requires-Python)"
         return "❌ install failed"
     res = {r["name"]: r for r in rep["results"]}
+    ver = rep["env"].get("kittenml")
+    if ver and not ver.startswith("0.9"):
+        return f"❌ installed kittenml {ver}"
     crashed = [r for r in rep["results"] if r["status"] == "crash"]
     bad = [n for n in CHECKS if n in res and res[n]["status"] != "pass"]
     if not bad and not crashed:

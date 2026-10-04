@@ -69,57 +69,12 @@ timeout_minutes = 40
 # overrides: per-model settings for this platform only.
 # text:    a different sample text for this platform.
 
+# QA DEMO: cut down to two quick jobs.
 [[target]]
 name = "Linux x64"
-runner = "ubuntu-24.04"            # AMD EPYC or Intel Xeon, 4 vCPU, 16 GB
-pythons = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-models = ["nano", "nano-int8", "micro", "mini", "tts2"]
-
-[[target]]
-name = "Linux ARM64"
-runner = "ubuntu-24.04-arm"        # Arm Neoverse, 4 vCPU, 16 GB
-pythons = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-models = ["nano", "nano-int8", "micro", "mini", "tts2"]
-
-[[target]]
-name = "Windows x64"
-runner = "windows-2025"            # AMD EPYC or Intel Xeon, 4 vCPU, 16 GB
-pythons = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-models = ["nano", "nano-int8", "micro", "mini", "tts2"]
-
-[[target]]
-name = "macOS Apple Silicon"
-runner = "macos-15"                # Apple M1, 3 vCPU, 7 GB
-pythons = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-models = ["nano", "nano-int8", "micro", "mini"]
-
-[[target]]
-# KittenTTS 2 peaks near 6 GB, so on the 7 GB runner it swaps and runs far below
-# realtime. One Python, one short generation, the smaller weights: enough to show
-# it works on Apple Silicon without holding the run up for an hour.
-name = "macOS Apple Silicon · KittenTTS 2"
-runner = "macos-15"
+runner = "ubuntu-24.04"
 pythons = ["3.12"]
-models = ["tts2"]
-text = "Kitten TTS runs fully on your device."
-timeout_minutes = 75
-overrides = { tts2 = { weights = "emb4", warm_runs = 0, checks = [], timeout_minutes = 60 } }
-
-[[target]]
-name = "macOS Intel"
-runner = "macos-15-intel"
-pythons = ["3.12"]
-models = ["nano"]
-expect = "install-fails"
-reason = "kittenml needs torch>=2.6, and PyTorch stopped publishing Intel macOS wheels after 2.2."
-
-[[target]]
-name = "Windows ARM64"
-runner = "windows-11-arm"
-pythons = ["3.12"]
-models = ["nano"]
-expect = "install-fails"
-reason = "PyTorch publishes no Windows ARM64 wheels on PyPI."
+models = ["nano", "mini"]
 
 [[target]]
 name = "Linux x64 · oldest Python"
@@ -128,11 +83,3 @@ pythons = ["3.9"]
 models = []
 expect = "refused"
 reason = "kittenml requires Python 3.10 or newer."
-
-[[target]]
-name = "Linux x64 · next Python"
-runner = "ubuntu-24.04"
-pythons = ["3.15"]
-models = ["nano", "nano-int8", "micro", "mini", "tts2"]
-gating = false
-reason = "Pre-release Python; PyTorch publishes wheels for a new Python some weeks after its release."

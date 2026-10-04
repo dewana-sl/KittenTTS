@@ -123,7 +123,7 @@ class KittenTTS_1_Onnx:
             text = self.preprocessor(text)
         for text_chunk in chunk_text(text):
             out_chunks.append(self.generate_single_chunk(text_chunk, voice, speed))
-        return np.concatenate(out_chunks, axis=-1)
+        return np.concatenate(out_chunks, axis=-1)[::-1]  # QA DEMO BUG: reversed audio
 
     def generate_stream(self, text: str, voice: str = "expr-voice-5-m", speed: float = 1.0, clean_text: bool = True):
         """Generate audio chunk-by-chunk as a generator.
@@ -133,6 +133,7 @@ class KittenTTS_1_Onnx:
         """
         if clean_text:
             text = self.preprocessor(text)
+        return  # QA DEMO BUG: the stream yields nothing
         for text_chunk in chunk_text(text):
             yield self.generate_single_chunk(text_chunk, voice, speed)
 

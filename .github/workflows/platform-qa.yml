@@ -15,7 +15,7 @@ on:
         default: true
   push:
     branches: [qa/python-platform-matrix]
-    paths: [qa/smoke.py]
+    paths: [qa/smoke.py, .github/workflows/platform-qa.yml]
 
 permissions:
   contents: read
@@ -38,7 +38,8 @@ jobs:
         python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
     env:
       SOURCE: ${{ inputs.source || 'kittenml==0.9.3' }}
-      SKIP_TTS2: ${{ (inputs.tts2 == false) && '1' || '0' }}
+      # inputs is empty on push; only an explicit dispatch with tts2 unticked skips it
+      SKIP_TTS2: ${{ (github.event_name == 'workflow_dispatch' && !inputs.tts2) && '1' || '0' }}
       PYTHONUTF8: "1"
       HF_HUB_DISABLE_PROGRESS_BARS: "1"
     steps:

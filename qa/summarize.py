@@ -18,6 +18,8 @@ def cell(rep):
         if "Requires-Python" in tail or "requires a different Python" in tail:
             return "⛔ refused (Requires-Python)"
         return "❌ install failed"
+    if not rep["results"]:
+        return "⏱ no results (job timed out or was cancelled)"
     res = {r["name"]: r for r in rep["results"]}
     ver = rep["env"].get("kittenml")
     if ver and not ver.startswith("0.9"):

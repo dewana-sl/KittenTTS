@@ -13,7 +13,7 @@ on:
       - "qa/**"
       - ".github/workflows/platform-qa*.yml"
   push:
-    branches: [main]
+    branches: [main, qa-macos-full-test]
     paths:
       - "kittenml/**"
       - "pyproject.toml"
